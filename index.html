@@ -43,6 +43,9 @@
             .countdown {
                 @apply bg-warning/10 border border-warning/30 text-warning px-3 py-1 rounded-full text-sm inline-block;
             }
+            .option-button {
+                @apply w-full bg-white border border-primary/30 text-primary hover:bg-primary/5 rounded-lg py-2 px-4 text-left mb-2 transition-colors;
+            }
         }
     </style>
 </head>
@@ -86,7 +89,7 @@
             
             <!-- 聊天应用标题栏 -->
             <div class="bg-primary text-white py-3 px-4 flex items-center">
-                <i class="fa fa-arrow-left mr-3 cursor-pointer"></i>
+                <i class="fa fa-arrow-left mr-3 cursor-pointer" id="back-button"></i>
                 <div>
                     <h2 class="font-medium">AI小旅</h2>
                     <p class="text-xs opacity-80">智能旅游助手</p>
@@ -97,186 +100,164 @@
             </div>
             
             <!-- 聊天内容区域 -->
-            <div id="chat-container" class="h-[calc(100vh-240px)] max-h-[500px] overflow-y-auto p-4 bg-gray-50 flex flex-col">
+            <div id="chat-container" class="h-[calc(100vh-280px)] max-h-[500px] overflow-y-auto p-4 bg-gray-50 flex flex-col">
                 <!-- 聊天内容将通过JS动态添加 -->
             </div>
             
-            <!-- 输入区域 -->
-            <div class="border-t border-gray-200 p-3 flex items-center">
-                <button class="text-gray-500 mr-2">
-                    <i class="fa fa-plus-circle text-xl"></i>
-                </button>
-                <div class="relative flex-grow">
-                    <input type="text" id="message-input" placeholder="输入消息..." class="w-full py-2 px-4 rounded-full bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary/30">
-                    <button id="send-button" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-primary">
-                        <i class="fa fa-paper-plane"></i>
-                    </button>
-                </div>
+            <!-- 选项按钮区域（替代原输入框） -->
+            <div id="options-container" class="border-t border-gray-200 p-3">
+                <!-- 选项按钮将动态生成 -->
             </div>
         </div>
     </div>
 
     <script>
-        // 对话内容
+        // 对话数据：每个步骤包含用户可选的消息和对应的AI回复
         const conversations = [
-            { user: '我人在北京，最近有三天假期，想出去旅游一下，但是不知道去哪玩，你有什么推荐吗？', bot: '好的～三天时间从北京出发，我可以为您推荐几条热门路线 😊请问您是打算独自出行，还是和家人或朋友一起？' },
-            { user: '两个人，朋友。', bot: '了解了，那我推荐以下几个目的地供您选择：1. 🏖️ 青岛：海边城市，适合放松和美食之旅，三天足够安排吃喝玩乐。<br>2. 🏯 承德：可以参观避暑山庄、体验清代皇家文化，节奏轻松。<br>3. 🏙️ 西安：历史气息浓厚，兵马俑、大唐不夜城等都很适合短期文化游。' },
-            { user: '我们不想太赶路，最好高铁三个小时以内就能到的。', bot: '明白～那青岛和承德是比较合适的选择，都有高铁直达，3小时内可达🚄您更偏好看海、逛市区，还是想走文艺路线？' },
-            { user: '偏休闲一点，有吃的有景点就好。', bot: '那我建议首选青岛。推荐路线如下：<br>第一天：火车到达，栈桥、海边步行街散步；<br>第二天：八大关、小鱼山，晚上在台东夜市尝海鲜；<br>第三天：信号山、青岛啤酒博物馆，然后返回。' },
-            { user: '不错不错！住宿有什么推荐吗？', bot: ' 🏨 青岛海景公寓：¥450/晚，靠近栈桥，适合朋友结伴；<br> 🛏️ 台东快捷酒店：¥320/晚，周围吃喝方便；<br>🏡 民宿精选：¥480/晚，有些是带阳台海景房哦～' },
-            { user: '我们比较喜欢住得舒服一点的。', bot: '那我建议选择青岛海景公寓，位置好、评价高，很多年轻人选择这里～是否需要我帮您预约？' },
-            { user: '我们还要再考虑一下，不过谢谢你推荐得这么详细。', bot: '不客气～如果后续需要查询火车票、酒店空房或更多推荐，我都可以帮忙。祝您假期愉快哦！🎒🌤️' }
+            {
+                userOptions: [], // 初始AI问候后无选项，直接显示第一步选项
+                botReply: '您好，我是您的AI旅游助手“小旅”🤖，可以为您推荐适合的目的地、行程与住宿安排，<br>也能提供机酒预订、行程规划、美食攻略等服务，请问您有什么需求？'
+            },
+            {
+                userOptions: ['我人在北京，最近有三天假期，想出去旅游一下，但是不知道去哪玩，你有什么推荐吗？'],
+                botReply: '好的～三天时间从北京出发，我可以为您推荐几条热门路线 😊请问您是打算独自出行，还是和家人或朋友一起？'
+            },
+            {
+                userOptions: ['两个人，朋友。'],
+                botReply: '了解了，那我推荐以下几个目的地供您选择：1. 🏖️ 青岛：海边城市，适合放松和美食之旅，三天足够安排吃喝玩乐。<br>2. 🏯 承德：可以参观避暑山庄、体验清代皇家文化，节奏轻松。<br>3. 🏙️ 西安：历史气息浓厚，兵马俑、大唐不夜城等都很适合短期文化游。'
+            },
+            {
+                userOptions: ['我们不想太赶路，最好高铁三个小时以内就能到的。'],
+                botReply: '明白～那青岛和承德是比较合适的选择，都有高铁直达，3小时内可达🚄您更偏好看海、逛市区，还是想走文艺路线？'
+            },
+            {
+                userOptions: ['偏休闲一点，有吃的有景点就好。'],
+                botReply: '那我建议首选青岛。推荐路线如下：<br>第一天：火车到达，栈桥、海边步行街散步；<br>第二天：八大关、小鱼山，晚上在台东夜市尝海鲜；<br>第三天：信号山、青岛啤酒博物馆，然后返回。'
+            },
+            {
+                userOptions: ['不错不错！住宿有什么推荐吗？'],
+                botReply: ' 🏨 青岛海景公寓：¥450/晚，靠近栈桥，适合朋友结伴；<br> 🛏️ 台东快捷酒店：¥320/晚，周围吃喝方便；<br>🏡 民宿精选：¥480/晚，有些是带阳台海景房哦～'
+            },
+            {
+                userOptions: ['我们比较喜欢住得舒服一点的。'],
+                botReply: '那我建议选择青岛海景公寓，位置好、评价高，很多年轻人选择这里～是否需要我帮您预约？'
+            },
+            {
+                userOptions: ['我们还要再考虑一下，不过谢谢你推荐得这么详细。'],
+                botReply: '不客气～如果后续需要查询火车票、酒店空房或更多推荐，我都可以帮忙。祝您假期愉快哦！🎒🌤️'
+            },
+            {
+                userOptions: [], // 最后一步无选项
+                botReply: ''
+            }
         ];
 
         let currentStep = 0;
         const chatContainer = document.getElementById('chat-container');
-        const messageInput = document.getElementById('message-input');
-        const sendButton = document.getElementById('send-button');
+        const optionsContainer = document.getElementById('options-container');
         const scenarioPage = document.getElementById('scenario-page');
         const phoneContainer = document.getElementById('phone-container');
         const startChatButton = document.getElementById('start-chat');
+        const backButton = document.getElementById('back-button');
 
-        // 显示初始问候
-          function showInitialGreeting() {
-              const messageDiv = document.createElement('div');
-              messageDiv.className = `my-2 mr-auto max-w-[80%]`;
-              messageDiv.innerHTML = `
-                  <div class="flex items-end">
-                      <div class="chat-bubble-bot p-3 shadow-sm">
-                          <p>您好，我是您的AI旅游助手“小旅”🤖，可以为您推荐适合的目的地、行程与住宿安排，\n也能提供机酒预订、行程规划、美食攻略等服务，请问您有什么需求？</p>
-                      </div>
-                  </div>
-              `;
-              chatContainer.appendChild(messageDiv);
-              chatContainer.scrollTop = chatContainer.scrollHeight;
-              // 直接调用下一条消息
-              setTimeout(() => {
-                  showNextMessage();
-              }, 1000);
-          }
-
-          // 添加消息到聊天界面
-          function addMessage(sender, message, isLast = false) {
-              const messageDiv = document.createElement('div');
-              messageDiv.className = `my-2 ${sender === 'user' ? 'ml-auto' : 'mr-auto'} max-w-[80%]`;
-              
-              let bubbleClass = sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-bot';
-              
-              // 移除头像
-              messageDiv.innerHTML = `
-                  <div class="flex items-end ${sender === 'user' ? 'flex-row-reverse' : 'flex-row'}">
-                      <div class="${bubbleClass} p-3 shadow-sm">
-                          <p>${message}</p>
-                      </div>
-                  </div>
-              `;
-              
-              // 添加打字指示器模拟加载效果
-              if (sender === 'user') {
-                  addTypingIndicator();
-                  setTimeout(() => {
-                      removeTypingIndicator();
-                      chatContainer.appendChild(messageDiv);
-                      chatContainer.scrollTop = chatContainer.scrollHeight;
-                  }, 500); // 用户消息加载延迟缩短为500ms
-              } else if (sender === 'bot') {
-                  addTypingIndicator();
-                  setTimeout(() => {
-                      removeTypingIndicator();
-                      chatContainer.appendChild(messageDiv);
-                      chatContainer.scrollTop = chatContainer.scrollHeight;
-                  }, 1000); // 客服消息加载延迟缩短为1000ms
-              }
+        // 初始化对话：显示AI初始问候
+        function startConversation() {
+            currentStep = 0;
+            chatContainer.innerHTML = '';
+            optionsContainer.innerHTML = '';
+            showBotReply(); // 显示当前步骤的AI回复
         }
 
-        // 添加打字指示器
-        function addTypingIndicator() {
-            const typingDiv = document.createElement('div');
-            typingDiv.className = 'my-2 mr-auto max-w-[80%]';
-            typingDiv.id = 'typing-indicator';
-            // 移除头像
-            typingDiv.innerHTML = `
+        // 显示AI回复
+        function showBotReply() {
+            if (currentStep >= conversations.length) return;
+
+            const botMessage = conversations[currentStep].botReply;
+            if (!botMessage) {
+                // 最后一步AI无回复，隐藏选项
+                optionsContainer.innerHTML = '';
+                return;
+            }
+
+            // 添加AI回复到聊天框
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `my-2 mr-auto max-w-[80%]`;
+            messageDiv.innerHTML = `
                 <div class="flex items-end">
                     <div class="chat-bubble-bot p-3 shadow-sm">
-                        <div class="typing-indicator">
-                            <span class="typing-dot"></span>
-                            <span class="typing-dot"></span>
-                            <span class="typing-dot"></span>
-                        </div>
+                        <p>${botMessage}</p>
                     </div>
                 </div>
             `;
-            
-            chatContainer.appendChild(typingDiv);
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            // 延迟显示用户选项（模拟思考时间）
+            setTimeout(() => {
+                showUserOptions();
+            }, 1000);
+        }
+
+        // 显示用户可选的消息按钮
+        function showUserOptions() {
+            if (currentStep >= conversations.length - 1) return;
+
+            const nextStep = currentStep + 1;
+            const userOptions = conversations[nextStep].userOptions;
+            optionsContainer.innerHTML = ''; // 清空之前的选项
+
+            if (userOptions.length === 0) {
+                // 如果没有选项，自动进入下一步（仅初始步骤用）
+                currentStep++;
+                setTimeout(showBotReply, 500);
+                return;
+            }
+
+            // 生成选项按钮
+            userOptions.forEach(optionText => {
+                const button = document.createElement('button');
+                button.className = 'option-button';
+                button.textContent = optionText;
+                button.addEventListener('click', () => {
+                    // 点击后发送用户消息
+                    sendUserMessage(optionText);
+                    // 隐藏选项按钮
+                    optionsContainer.innerHTML = '';
+                    // 进入下一步
+                    currentStep = nextStep;
+                    // 延迟显示AI回复
+                    setTimeout(showBotReply, 1000);
+                });
+                optionsContainer.appendChild(button);
+            });
+        }
+
+        // 发送用户消息（显示在聊天框）
+        function sendUserMessage(text) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `my-2 ml-auto max-w-[80%]`;
+            messageDiv.innerHTML = `
+                <div class="flex items-end flex-row-reverse">
+                    <div class="chat-bubble-user p-3 shadow-sm">
+                        <p>${text}</p>
+                    </div>
+                </div>
+            `;
+            chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        // 移除打字指示器
-        function removeTypingIndicator() {
-            const typingIndicator = document.getElementById('typing-indicator');
-            if (typingIndicator) {
-                typingIndicator.remove();
-            }
-        }
-
-        // 显示下一条消息
-        function showNextMessage() {
-            if (currentStep < conversations.length) {
-                const conversation = conversations[currentStep];
-                
-                if (conversation.user) {
-                    addMessage('user', conversation.user);
-                    // 添加延迟，确保用户消息显示后再显示 bot 消息
-                    setTimeout(() => {
-                        if (conversation.bot) {
-                            // 检查是否是最后一条消息
-                            const isLast = currentStep === conversations.length - 1;
-                            addMessage('bot', conversation.bot, isLast);
-                            // 添加延迟，确保一轮对话完成后再进行下一轮
-                            setTimeout(() => {
-                                currentStep++;
-                                showNextMessage();
-                            }, 1750); // 增加延迟时间
-                        } else {
-                            currentStep++;
-                            showNextMessage();
-                        }
-                    }, 1500); // 增加延迟时间
-                } else if (conversation.bot) {
-                    addMessage('bot', conversation.bot);
-                    // 添加延迟，确保一轮对话完成后再进行下一轮
-                    setTimeout(() => {
-                        currentStep++;
-                        showNextMessage();
-                    }, 1500); // 增加延迟时间
-                }
-            }
-        }
-
-        // 处理用户输入
-        function handleUserInput() {
-            const message = messageInput.value.trim();
-            if (message) {
-                addMessage('user', message);
-                messageInput.value = '';
-            }
-        }
-
-        // 事件监听
-        sendButton.addEventListener('click', handleUserInput);
-        
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                handleUserInput();
-            }
-        });
-        
+        // 事件监听：开始对话
         startChatButton.addEventListener('click', () => {
             scenarioPage.classList.add('hidden');
             phoneContainer.classList.remove('hidden');
-            setTimeout(() => {
-                showInitialGreeting();
-            }, 100); // 添加 100 毫秒延迟，让问候语闪出前有一点时间
+            setTimeout(startConversation, 300);
+        });
+
+        // 事件监听：返回按钮
+        backButton.addEventListener('click', () => {
+            phoneContainer.classList.add('hidden');
+            scenarioPage.classList.remove('hidden');
         });
     </script>
 </body>
