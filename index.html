@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>旅游咨询</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        secondary: '#00B42A',
+                        neutral: '#F5F5F5',
+                        'neutral-dark': '#E5E5E5',
+                        warning: '#FF7D00',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .chat-bubble-user {
+                @apply bg-primary text-white rounded-tl-lg rounded-tr-lg rounded-bl-lg;
+            }
+            .chat-bubble-bot {
+                @apply bg-neutral-dark text-gray-800 rounded-tl-lg rounded-tr-lg rounded-br-lg;
+            }
+            .typing-indicator {
+                @apply flex space-x-1 animate-pulse;
+            }
+            .typing-dot {
+                @apply w-2 h-2 bg-gray-400 rounded-full;
+            }
+            .countdown {
+                @apply bg-warning/10 border border-warning/30 text-warning px-3 py-1 rounded-full text-sm inline-block;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+    <div id="scenario-page" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center p-6">
+        <div class="max-w-md w-full">
+            <div class="text-center mb-6">
+                <h1 class="text-2xl font-bold text-gray-800 mb-2">旅游咨询</h1>
+                <p class="text-gray-600">与客服对话获取行程建议</p>
+            </div>
+            
+            <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6 rounded">
+                <p class="text-gray-700">
+                    <strong>情境:</strong> 您正在计划一场从北京出发为期三天的旅程，由于时间紧张，您必须在今天之内决定旅游目的地并完成大致行程安排。为了高效决策，并了解相关的旅游资讯，您打开旅游平台，进入客服咨询界面。
+                </p>
+            </div>
+            
+            <div class="bg-warning/10 border border-warning/30 text-warning p-4 mb-6 rounded">
+                <p class="text-gray-700 font-medium">
+                    <i class="fa fa-clock-o mr-2"></i>时间紧迫：请尽快做出决策，以免耽误行程！
+                </p>
+            </div>
+            
+            <button id="start-chat" class="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 px-4 rounded-lg transition duration-300 ease-in-out">
+                开始对话
+            </button>
+        </div>
+    </div>
+
+    <div id="phone-container" class="fixed inset-0 bg-gray-900/80 z-40 flex items-center justify-center p-4 hidden">
+        <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-xs overflow-hidden border-8 border-gray-800">
+            <!-- 手机顶部状态栏 -->
+            <div class="bg-gray-800 text-white text-xs flex items-center justify-between px-4 py-1.5">
+                <span>9:41 AM</span>
+                <div class="flex items-center space-x-1">
+                    <i class="fa fa-signal"></i>
+                    <i class="fa fa-wifi"></i>
+                    <i class="fa fa-battery-three-quarters"></i>
+                </div>
+            </div>
+            
+            <!-- 聊天应用标题栏 -->
+            <div class="bg-primary text-white py-3 px-4 flex items-center">
+                <i class="fa fa-arrow-left mr-3 cursor-pointer"></i>
+                <div>
+                    <h2 class="font-medium">AI小旅</h2>
+                    <p class="text-xs opacity-80">智能旅游助手</p>
+                </div>
+                <div class="ml-auto">
+                    <span class="countdown"><i class="fa fa-clock-o mr-1"></i>24小时内</span>
+                </div>
+            </div>
+            
+            <!-- 聊天内容区域 -->
+            <div id="chat-container" class="h-[calc(100vh-240px)] max-h-[500px] overflow-y-auto p-4 bg-gray-50 flex flex-col">
+                <!-- 聊天内容将通过JS动态添加 -->
+            </div>
+            
+            <!-- 输入区域 -->
+            <div class="border-t border-gray-200 p-3 flex items-center">
+                <button class="text-gray-500 mr-2">
+                    <i class="fa fa-plus-circle text-xl"></i>
+                </button>
+                <div class="relative flex-grow">
+                    <input type="text" id="message-input" placeholder="输入消息..." class="w-full py-2 px-4 rounded-full bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary/30">
+                    <button id="send-button" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-primary">
+                        <i class="fa fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 对话内容
+        const conversations = [
+            { user: '我人在北京，最近有三天假期，想出去旅游一下，但是不知道去哪玩，你有什么推荐吗？', bot: '好的～三天时间从北京出发，我可以为您推荐几条热门路线 😊请问您是打算独自出行，还是和家人或朋友一起？' },
+            { user: '两个人，朋友。', bot: '了解了，那我推荐以下几个目的地供您选择：1. 🏖️ 青岛：海边城市，适合放松和美食之旅，三天足够安排吃喝玩乐。<br>2. 🏯 承德：可以参观避暑山庄、体验清代皇家文化，节奏轻松。<br>3. 🏙️ 西安：历史气息浓厚，兵马俑、大唐不夜城等都很适合短期文化游。' },
+            { user: '我们不想太赶路，最好高铁三个小时以内就能到的。', bot: '明白～那青岛和承德是比较合适的选择，都有高铁直达，3小时内可达🚄您更偏好看海、逛市区，还是想走文艺路线？' },
+            { user: '偏休闲一点，有吃的有景点就好。', bot: '那我建议首选青岛。推荐路线如下：<br>第一天：火车到达，栈桥、海边步行街散步；<br>第二天：八大关、小鱼山，晚上在台东夜市尝海鲜；<br>第三天：信号山、青岛啤酒博物馆，然后返回。' },
+            { user: '不错不错！住宿有什么推荐吗？', bot: ' 🏨 青岛海景公寓：¥450/晚，靠近栈桥，适合朋友结伴；<br> 🛏️ 台东快捷酒店：¥320/晚，周围吃喝方便；<br>🏡 民宿精选：¥480/晚，有些是带阳台海景房哦～' },
+            { user: '我们比较喜欢住得舒服一点的。', bot: '那我建议选择青岛海景公寓，位置好、评价高，很多年轻人选择这里～是否需要我帮您预约？' },
+            { user: '我们还要再考虑一下，不过谢谢你推荐得这么详细。', bot: '不客气～如果后续需要查询火车票、酒店空房或更多推荐，我都可以帮忙。祝您假期愉快哦！🎒🌤️' }
+        ];
+
+        let currentStep = 0;
+        const chatContainer = document.getElementById('chat-container');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const scenarioPage = document.getElementById('scenario-page');
+        const phoneContainer = document.getElementById('phone-container');
+        const startChatButton = document.getElementById('start-chat');
+
+        // 显示初始问候
+          function showInitialGreeting() {
+              const messageDiv = document.createElement('div');
+              messageDiv.className = `my-2 mr-auto max-w-[80%]`;
+              messageDiv.innerHTML = `
+                  <div class="flex items-end">
+                      <div class="chat-bubble-bot p-3 shadow-sm">
+                          <p>您好，我是您的AI旅游助手“小旅”🤖，可以为您推荐适合的目的地、行程与住宿安排，\n也能提供机酒预订、行程规划、美食攻略等服务，请问您有什么需求？</p>
+                      </div>
+                  </div>
+              `;
+              chatContainer.appendChild(messageDiv);
+              chatContainer.scrollTop = chatContainer.scrollHeight;
+              // 直接调用下一条消息
+              setTimeout(() => {
+                  showNextMessage();
+              }, 1000);
+          }
+
+          // 添加消息到聊天界面
+          function addMessage(sender, message, isLast = false) {
+              const messageDiv = document.createElement('div');
+              messageDiv.className = `my-2 ${sender === 'user' ? 'ml-auto' : 'mr-auto'} max-w-[80%]`;
+              
+              let bubbleClass = sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-bot';
+              
+              // 移除头像
+              messageDiv.innerHTML = `
+                  <div class="flex items-end ${sender === 'user' ? 'flex-row-reverse' : 'flex-row'}">
+                      <div class="${bubbleClass} p-3 shadow-sm">
+                          <p>${message}</p>
+                      </div>
+                  </div>
+              `;
+              
+              // 添加打字指示器模拟加载效果
+              if (sender === 'user') {
+                  addTypingIndicator();
+                  setTimeout(() => {
+                      removeTypingIndicator();
+                      chatContainer.appendChild(messageDiv);
+                      chatContainer.scrollTop = chatContainer.scrollHeight;
+                  }, 500); // 用户消息加载延迟缩短为500ms
+              } else if (sender === 'bot') {
+                  addTypingIndicator();
+                  setTimeout(() => {
+                      removeTypingIndicator();
+                      chatContainer.appendChild(messageDiv);
+                      chatContainer.scrollTop = chatContainer.scrollHeight;
+                  }, 1000); // 客服消息加载延迟缩短为1000ms
+              }
+        }
+
+        // 添加打字指示器
+        function addTypingIndicator() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'my-2 mr-auto max-w-[80%]';
+            typingDiv.id = 'typing-indicator';
+            // 移除头像
+            typingDiv.innerHTML = `
+                <div class="flex items-end">
+                    <div class="chat-bubble-bot p-3 shadow-sm">
+                        <div class="typing-indicator">
+                            <span class="typing-dot"></span>
+                            <span class="typing-dot"></span>
+                            <span class="typing-dot"></span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            chatContainer.appendChild(typingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // 移除打字指示器
+        function removeTypingIndicator() {
+            const typingIndicator = document.getElementById('typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+
+        // 显示下一条消息
+        function showNextMessage() {
+            if (currentStep < conversations.length) {
+                const conversation = conversations[currentStep];
+                
+                if (conversation.user) {
+                    addMessage('user', conversation.user);
+                    // 添加延迟，确保用户消息显示后再显示 bot 消息
+                    setTimeout(() => {
+                        if (conversation.bot) {
+                            // 检查是否是最后一条消息
+                            const isLast = currentStep === conversations.length - 1;
+                            addMessage('bot', conversation.bot, isLast);
+                            // 添加延迟，确保一轮对话完成后再进行下一轮
+                            setTimeout(() => {
+                                currentStep++;
+                                showNextMessage();
+                            }, 1750); // 增加延迟时间
+                        } else {
+                            currentStep++;
+                            showNextMessage();
+                        }
+                    }, 1500); // 增加延迟时间
+                } else if (conversation.bot) {
+                    addMessage('bot', conversation.bot);
+                    // 添加延迟，确保一轮对话完成后再进行下一轮
+                    setTimeout(() => {
+                        currentStep++;
+                        showNextMessage();
+                    }, 1500); // 增加延迟时间
+                }
+            }
+        }
+
+        // 处理用户输入
+        function handleUserInput() {
+            const message = messageInput.value.trim();
+            if (message) {
+                addMessage('user', message);
+                messageInput.value = '';
+            }
+        }
+
+        // 事件监听
+        sendButton.addEventListener('click', handleUserInput);
+        
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleUserInput();
+            }
+        });
+        
+        startChatButton.addEventListener('click', () => {
+            scenarioPage.classList.add('hidden');
+            phoneContainer.classList.remove('hidden');
+            setTimeout(() => {
+                showInitialGreeting();
+            }, 100); // 添加 100 毫秒延迟，让问候语闪出前有一点时间
+        });
+    </script>
+</body>
+</html>
